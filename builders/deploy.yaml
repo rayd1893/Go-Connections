@@ -1,0 +1,73 @@
+timeout: '1200s'
+options:
+  machineType: 'N1_HIGHCPU_8'
+  env:
+    - 'GOPATH=/go'
+    - 'GO111MODULE=on'
+    - 'GOPROXY=https://proxy.golang.org,direct'
+    - 'CGO_ENABLED=0'
+    - 'GOOS=linux'
+    - 'GOARCH=amd64'
+  volumes:
+    - name: 'go-modules'
+      path: '/go/pkg'
+
+substitutions:
+  _GO_TAGS: '99minutos'
+  _REPO: 'github.com/99minutos/shipments-snapshot-service'
+
+steps:
+  - id: 'mkdir-bin'
+    name: 'bash:5'
+    args:
+      - 'mkdir'
+      - 'bin'
+
+  - id: 'build'
+    name: 'golang:1.17'
+    args:
+      - 'go'
+      - 'build'
+      - '-tags=${_GO_TAGS}'
+      - '-trimpath'
+      - '-o=./bin/'
+      - './cmd/...'
+    waitFor:
+      - 'mkdir-bin'
+
+  - id: 'dockerize-snapshots'
+    name: 'docker:19'
+    args:
+      - 'build'
+      - '--file=builders/service.dockerfile'
+      - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/snapshots'
+      - '--build-arg=SERVICE=snapshots'
+      - '.'
+    waitFor:
+      - 'build'
+
+  - id: 'push-snapshots'
+    name: 'docker:19'
+    args:
+      - 'push'
+      - 'gcr.io/${PROJECT_ID}/${_REPO}/snapshots'
+    waitFor:
+      - 'dockerize-snapshots'
+
+  - id: 'deploy-snapshots'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0-alpine'
+    args:
+      - 'bash'
+      - '-eEuo'
+      - 'pipefail'
+      - '-c'
+      - |-
+        gcloud run deploy "ss-snapshots" \
+          --project "${PROJECT_ID}" \
+          --region "${_REGION}" \
+          --image "gcr.io/${PROJECT_ID}/${_REPO}/snapshots" \
+          --port "8080" \
+          --allow-unauthenticated \
+          --set-env-vars "FSM_DB_CONN_TYPE=${_FSM_DB_CONN_TYPE},FSM_DB_NAME=${_FSM_DB_NAME},FSM_DB_USER=${_FSM_DB_USER},FSM_DB_HOST=${_FSM_DB_HOST},FSM_DB_PASSWORD=${_FSM_DB_PASSWORD},ENV=${_ENV},FSM_DB_CONN_NAME=${_FSM_DB_CONN_NAME}"
+    waitFor:
+      - 'push-snapshots'

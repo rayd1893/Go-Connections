@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+option go_package = "github.com/99minutos/shipments-snapshot-service/pkg/pb;pb";
+
+service ShipmentsSnapshot {
+  rpc GetShipment(GetShipmentRequest) returns (Shipment) {}
+  rpc GetShipments(GetShipmentsRequest) returns (GetShipmentsResponse) {}
+  rpc GetEvents(GetEventsRequest) returns (GetEventsResponse) {}
+}
+
+message Legacy {
+  optional string station = 2;
+}
+
+message LegacyMetadata {
+  optional string amount_cash = 1;
+  optional string legacy_apikey = 2;
+  optional string notes = 3;
+}
+
+message EventData {
+  optional Legacy legacy = 1;
+}
+
+message EventMetadata {
+  optional string platform = 1;
+}
+
+message Event {
+  string event_name = 1;
+  string status_code = 2;
+  string status_name = 3;
+  optional EventData data = 4;
+  optional EventMetadata metadata = 5;
+}
+
+message Address {
+  string street_line = 1;
+  double lat = 2;
+  double lng = 3;
+  string type = 4;
+}
+
+message Person {
+  string first_name = 1;
+  string last_name = 2;
+  string email = 3;
+  string phone_number = 4;
+}
+
+message Payment {
+  string payment_method = 1;
+}
+
+message Option {
+  optional string pick_up_after = 1;
+  optional bool requires_identification = 2;
+  optional bool requires_signature = 3;
+  optional bool two_factora_auth = 4;
+  optional LegacyMetadata legacy_metadata = 5;
+}
+
+message Item {
+  string size = 1;
+  float weight = 2;
+}
+
+message Shipment {
+  string tracking_id = 1;
+  string internal_key = 2;
+  string order_id = 3;
+  string status = 4;
+  Address origin = 5;
+  Address destination = 6;
+  Person recipient = 7;
+  Person sender = 8;
+  string delivery_type = 9;
+  Payment payment = 10;
+  Option option = 11;
+  repeated Item items = 12;
+}
+
+message DateInterval {
+  string start = 1;
+  string finish = 2;
+}
+
+message PageCursor {
+  int32 page_size = 1;
+  int32 page = 2;
+}
+
+// -----  Requests  -----
+message GetShipmentRequest {
+  string tracking_id = 1;
+  //  optional string internal_key = 2;
+  //  optional string client_id = 3;
+}
+
+message GetShipmentsRequest {
+  optional DateInterval interval_dates = 1;
+  optional string client_id = 2;
+  optional string delivery_type = 3;
+  optional string status = 4;
+  PageCursor page_cursor = 30;
+}
+
+message GetEventsRequest {
+  string tracking_id = 1;
+  //  optional string internal_key = 2; //validacion adicional, si hay dos clientes con dos internal key iguales
+}
+
+message GetShipmentsResponse {
+  repeated Shipment shipments = 1;
+}
+
+message GetEventsResponse {
+  repeated Event events = 1;
+}
+
+message GetStatusReportRequest {
+  string status = 1;
+  DateInterval between_dates = 2;
+  optional int32 chunk = 3;
+}

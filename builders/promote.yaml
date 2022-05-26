@@ -1,0 +1,23 @@
+substitutions:
+  _PERCENTAGE:
+  _REGION:
+  _REVISION:
+
+steps:
+  - id: 'promote-snapshots'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0-alpine'
+    args:
+      - 'bash'
+      - '-eEuo'
+      - 'pipefail'
+      - '-c'
+      - |-
+        gcloud run services update-traffic "ss-snapshots" \
+          --quiet \
+          --project "${PROJECT_ID}" \
+          --platform "managed" \
+          --region "${_REGION}" \
+          --port "8080" \
+          --to-revisions "${_REVISION}=${_PERCENTAGE}"
+    waitFor:
+      - '-'
